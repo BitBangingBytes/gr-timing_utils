@@ -9,6 +9,7 @@
 
 #include <pmt/pmt.h>
 #include <boost/asio.hpp>
+#include <boost/asio/deadline_timer.hpp>
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread/thread.hpp>
@@ -23,10 +24,12 @@ public:
     {
         boost::posix_time::ptime epoch2(boost::gregorian::date(1970, 1, 1));
         epoch = epoch2;
-        io.reset();
+        io.restart();
         timer = new boost::asio::deadline_timer(io);
-        work = boost::shared_ptr<boost::asio::io_service::work>(
-            new boost::asio::io_service::work(io));
+        work = boost::shared_ptr<
+            boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
+            new boost::asio::executor_work_guard<boost::asio::io_context::executor_type>(
+                boost::asio::make_work_guard(io)));
         debug = false;
     }
 
@@ -123,6 +126,7 @@ protected:
 
     virtual void process_interrupt() = 0;
 
-    boost::asio::io_service io;
-    boost::shared_ptr<boost::asio::io_service::work> work;
+    boost::asio::io_context io;
+    boost::shared_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>
+        work;
 };

@@ -48,7 +48,7 @@ interrupt_emitter_impl<T>::interrupt_emitter_impl(double rate,
                           [this](pmt::pmt_t msg) { this->handle_set_time(msg); });
     boost::posix_time::ptime epoch(boost::gregorian::date(1970, 1, 1));
     d_epoch = epoch;
-    timer_thread = new boost::thread(boost::bind(&boost::asio::io_service::run, &io));
+    timer_thread = new boost::thread([this]() { this->io.run(); });
     d_last_tag_time = 0; // time,sample starts at 0,0 unless we get an rx_time tag
     d_last_tag_samp = 0;
     debug = false;
@@ -174,13 +174,13 @@ void interrupt_emitter_impl<T>::handle_set_time(pmt::pmt_t time_pmt)
             // rather than clock time.
             pmt_out = pmt::dict_add(
                 pmt_out, PMTCONSTSTR__late_delta(), pmt::from_double((wait_time * -1.0)));
-            io.dispatch(
-                boost::bind(&interrupt_emitter_impl<T>::StartTimer, this, 0, pmt_out));
+            boost::asio::dispatch(
+                io, boost::bind(&interrupt_emitter_impl<T>::StartTimer, this, 0, pmt_out));
         }
     } else {
         if (debug)
             std::cout << "arming interrupt\n";
-        io.dispatch(boost::bind(
+        boost::asio::dispatch(io, boost::bind(
             &interrupt_emitter_impl<T>::StartTimer, this, wait_time, pmt_out));
     }
 }
@@ -188,7 +188,7 @@ void interrupt_emitter_impl<T>::handle_set_time(pmt::pmt_t time_pmt)
 template <class T>
 bool interrupt_emitter_impl<T>::stop()
 {
-    io.dispatch(boost::bind(&interrupt_emitter_impl<T>::StopTimer, this));
+    boost::asio::dispatch(io, boost::bind(&interrupt_emitter_impl<T>::StopTimer, this));
     timer_thread->join();
 
     return true;
